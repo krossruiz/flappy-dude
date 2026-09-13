@@ -622,6 +622,19 @@ canvas#game {
     padding: 12px 12px 28px;
   }
 
+  /* The consent panel's text can be taller than the aspect-ratio-locked
+     game stage, which clips its button/disclaimer off-screen. Break it
+     out into a full-viewport layer so it always has room to scroll. */
+  .overlay:has(#screen-consent:not(.hidden)) {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    padding: 16px;
+    border-radius: 0;
+    z-index: 30;
+  }
+
   .consent p,
   .consent li {
     font-size: 13px;
