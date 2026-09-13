@@ -10,7 +10,7 @@ import { promisify } from "util";
 const execFileP = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
-const DATA_DIR = path.join(__dirname, "data");
+const DATA_DIR = process.env.VERCEL ? path.join("/tmp", "data") : path.join(__dirname, "data");
 const RECORDINGS_DIR = path.join(DATA_DIR, "recordings");
 const THUMBS_DIR = path.join(DATA_DIR, "thumbnails");
 const DB_PATH = path.join(DATA_DIR, "sessions.json");
@@ -324,8 +324,12 @@ app.use((err, _req, res, next) => {
   next();
 });
 
-app.listen(PORT, async () => {
-  const ffmpeg = await ffmpegPromise;
-  console.log(`Flappy Dude running at http://localhost:${PORT}`);
-  console.log(ffmpeg ? `ffmpeg: ${ffmpeg}` : "ffmpeg not found — mic audio will be stored as a sidecar");
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    const ffmpeg = await ffmpegPromise;
+    console.log(`Flappy Dude running at http://localhost:${PORT}`);
+    console.log(ffmpeg ? `ffmpeg: ${ffmpeg}` : "ffmpeg not found — mic audio will be stored as a sidecar");
+  });
+}
+
+export default app;

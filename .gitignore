@@ -5,3 +5,5 @@ data/sessions.json
 public/assets/_ground_tile_check.png
 .DS_Store
 Thumbs.db
+
+.vercel
