@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Flappy Dude</title>
+    <meta
+      name="description"
+      content="Flap with your face. Your webcam is the bird, and every run is recorded to the community log."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito:wght@500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="icon" href="/assets/play.png" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Webcam arcade</p>
+          <h1>Flappy Dude</h1>
+        </div>
+        <button type="button" class="ghost-btn" id="btn-open-log">Replays</button>
+      </header>
+
+      <div class="layout">
+        <section class="stage-wrap">
+          <div class="stage" id="stage">
+            <canvas id="game" width="480" height="720" aria-label="Flappy Dude game"></canvas>
+            <div class="hud" id="hud" hidden>
+              <span class="rec-dot" aria-hidden="true"></span>
+              <span>Recording to server</span>
+            </div>
+            <div class="overlay" id="overlay">
+              <section class="screen" id="screen-consent">
+                <p class="logo-mark">FLAPPY DUDE</p>
+                <p class="tagline">Your face is the bird.</p>
+                <article class="panel consent">
+                  <h2>Camera &amp; recording</h2>
+                  <p>
+                    This game uses your <strong>front-facing camera / webcam</strong> so your face
+                    replaces the bird sprite. Your face is cropped to a consistent square while you
+                    play.
+                  </p>
+                  <ul>
+                    <li>The live camera feed is shown as the flapping character.</li>
+                    <li>
+                      Each play session is recorded as a gameplay replay, including your face
+                      <strong>and microphone audio</strong> (reactions, laughs, groans).
+                    </li>
+                    <li>When the run ends, that replay plays back immediately, then uploads to this game’s server.</li>
+                    <li>
+                      Your name, score, and replay (video + audio) are posted to the public
+                      <strong>Community Log</strong> so other players can watch.
+                    </li>
+                  </ul>
+                  <label class="field">
+                    <span>Display name</span>
+                    <input
+                      id="player-name"
+                      type="text"
+                      maxlength="48"
+                      autocomplete="nickname"
+                      placeholder="What should the log call you?"
+                    />
+                  </label>
+                  <button type="button" class="primary-btn" id="btn-enable">
+                    <img src="/assets/play.png" alt="" />
+                    <span>Enable camera, mic &amp; play</span>
+                  </button>
+                  <p class="fineprint">
+                    By continuing you allow webcam and microphone access, session recording
+                    (video + audio), and public upload of your replay to the community log.
+                  </p>
+                  <p class="error" id="consent-error" hidden></p>
+                </article>
+              </section>
+
+              <section class="screen hidden" id="screen-title">
+                <p class="logo-mark">FLAPPY DUDE</p>
+                <div class="preview-wrap">
+                  <canvas id="preview" width="160" height="160" aria-hidden="true"></canvas>
+                </div>
+                <p class="best" id="best-label">Best 0</p>
+                <button type="button" class="primary-btn" id="btn-play">
+                  <img src="/assets/play.png" alt="" />
+                  <span>Play</span>
+                </button>
+                <p class="hint">Space, click, or tap to flap</p>
+              </section>
+
+              <section class="screen hidden dim" id="screen-ready">
+                <p class="ready-title">Get ready</p>
+                <p class="hint big">Press space to flap</p>
+              </section>
+
+              <section class="screen hidden" id="screen-dead">
+                <article class="panel">
+                  <h2>Game over</h2>
+                  <p class="score-line">Score <strong id="dead-score">0</strong></p>
+                  <p class="score-line muted">Best <strong id="dead-best">0</strong></p>
+                  <p class="status" id="upload-status">Saving replay to the server…</p>
+                  <button type="button" class="primary-btn" id="btn-again">
+                    <img src="/assets/play.png" alt="" />
+                    <span>Flap again</span>
+                  </button>
+                </article>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <aside class="log" id="community">
+          <div class="log-head">
+            <div>
+              <h2>Community log</h2>
+              <p>Public replays recorded on this server.</p>
+            </div>
+            <button type="button" class="icon-btn" id="btn-close-log">Close</button>
+          </div>
+          <div class="log-list" id="log-list">
+            <p class="empty">No one has flapped yet. Be the first.</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <dialog class="replay-modal" id="replay-modal">
+      <header>
+        <div>
+          <p id="replay-title">Replay</p>
+          <p id="replay-meta"></p>
+          <p id="replay-description-view" class="replay-desc"></p>
+        </div>
+        <form method="dialog">
+          <button type="submit" class="icon-btn">Close</button>
+        </form>
+      </header>
+      <div class="replay-player">
+        <video id="replay-video" controls playsinline></video>
+        <audio id="replay-audio"></audio>
+        <button type="button" class="replay-play-prompt" id="replay-play-prompt" hidden>
+          Play replay
+        </button>
+      </div>
+      <form id="replay-edit-form" class="replay-edit">
+        <label>
+          <span>Title</span>
+          <input id="replay-edit-name" type="text" maxlength="48" placeholder="Replay title" />
+        </label>
+        <label>
+          <span>Description</span>
+          <textarea
+            id="replay-edit-description"
+            maxlength="280"
+            rows="3"
+            placeholder="Post a description of this run"
+          ></textarea>
+        </label>
+        <button type="submit" class="primary-btn" id="btn-save-replay-meta">
+          <span>Save title &amp; description</span>
+        </button>
+        <p class="replay-edit-status" id="replay-edit-status"></p>
+      </form>
+    </dialog>
+
+    <script type="module" src="/js/main.js"></script>
+  </body>
+</html>

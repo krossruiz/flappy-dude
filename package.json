@@ -1,0 +1,15 @@
+{
+  "name": "flappy-dude",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Flappy Bird-style browser game where your webcam face is the bird, with session recording and a community replay log.",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "multer": "^2.3.0"
+  }
+}
