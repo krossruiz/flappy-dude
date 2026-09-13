@@ -21,6 +21,10 @@ const replayEditForm = $("replay-edit-form");
 const replayEditName = $("replay-edit-name");
 const replayEditDescription = $("replay-edit-description");
 const replayEditStatus = $("replay-edit-status");
+const btnCloseReplay = $("btn-close-replay");
+const replayDownload = $("btn-download-replay");
+const replayShare = $("btn-share-replay");
+const logSearch = $("log-search");
 
 const webcam = new WebcamFeed();
 const recorder = new SessionRecorder();
@@ -33,7 +37,8 @@ $("best-label").textContent = `Best ${localStorage.getItem("flappyDudeBest") || 
 let finishing = false;
 let recording = false;
 let activeReplay = null;
-let pendingMeta = null;
+let pendingThumb = null;
+let allSessions = [];
 
 function showScreen(id) {
   for (const screen of overlay.querySelectorAll(".screen")) {
@@ -51,10 +56,51 @@ function setHud(on) {
 
 async function refreshLog() {
   try {
-    const sessions = await loadSessions();
-    renderLog(logList, sessions, { onOpen: openReplay, onSave: persistReplayMeta });
+    allSessions = await loadSessions();
+    applyLogFilter();
   } catch {
     logList.innerHTML = `<p class="empty">Could not load the community log.</p>`;
+  }
+}
+
+function applyLogFilter() {
+  const query = (logSearch?.value || "").trim().toLowerCase();
+  const sessions = !query
+    ? allSessions
+    : allSessions.filter(
+        (s) =>
+          (s.name || "").toLowerCase().includes(query) ||
+          (s.description || "").toLowerCase().includes(query)
+      );
+  renderLog(logList, sessions, { onOpen: openReplay, onSave: persistReplayMeta, buildShareUrl: shareReplayUrl });
+  if (query && allSessions.length && !sessions.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = `No replays match "${logSearch.value.trim()}".`;
+    logList.innerHTML = "";
+    logList.appendChild(p);
+  }
+}
+
+logSearch?.addEventListener("input", applyLogFilter);
+
+function shareReplayUrl(id) {
+  return `${location.origin}/?replay=${id}`;
+}
+
+async function copyShareUrl(id, statusEl) {
+  const url = shareReplayUrl(id);
+  try {
+    await navigator.clipboard.writeText(url);
+    if (statusEl) {
+      const original = statusEl.textContent;
+      statusEl.textContent = "Share link copied to clipboard.";
+      setTimeout(() => {
+        if (statusEl.textContent === "Share link copied to clipboard.") statusEl.textContent = original;
+      }, 2000);
+    }
+  } catch {
+    window.prompt("Copy this link to share the replay:", url);
   }
 }
 
@@ -107,9 +153,32 @@ async function playReplayWithSound() {
   }
 }
 
+function slugify(value) {
+  return (
+    String(value || "replay")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "replay"
+  );
+}
+
+function updateReplayActionUI() {
+  const hosted = Boolean(activeReplay?.id);
+  const saveBtn = $("btn-save-replay-meta");
+  saveBtn.querySelector("span").textContent = hosted
+    ? "Save title & description"
+    : "Upload video to community";
+  replayDownload.hidden = !activeReplay?.videoUrl;
+  replayDownload.href = activeReplay?.videoUrl || "#";
+  replayDownload.download = `flappy-dude-${slugify(activeReplay?.name)}.webm`;
+  replayShare.hidden = !hosted;
+  replayEditStatus.textContent = hosted
+    ? ""
+    : "Not uploaded yet — add a title & description, then upload it to share it.";
+}
+
 function openReplay(session) {
   activeReplay = session;
-  pendingMeta = null;
   $("replay-title").textContent = session.name;
   $("replay-meta").textContent = `Score ${session.score}`;
   const descView = $("replay-description-view");
@@ -117,7 +186,7 @@ function openReplay(session) {
   descView.hidden = !session.description;
   replayEditName.value = session.name || "";
   replayEditDescription.value = session.description || "";
-  replayEditStatus.textContent = session.id ? "" : "Saving replay to the server…";
+  updateReplayActionUI();
   stopReplayMedia();
   replayVideo.defaultMuted = false;
   replayVideo.muted = false;
@@ -159,10 +228,33 @@ replayPrompt.addEventListener("click", () => {
   playReplayWithSound();
 });
 
+function hasUnsavedLocalReplay() {
+  return Boolean(activeReplay && !activeReplay.id && recorder.blob);
+}
+
+function confirmDiscardIfNeeded() {
+  if (!hasUnsavedLocalReplay()) return true;
+  return window.confirm("Your video will be lost, are you sure you want to exit?");
+}
+
+btnCloseReplay.addEventListener("click", () => {
+  if (!confirmDiscardIfNeeded()) return;
+  replayModal.close();
+});
+
+replayModal.addEventListener("cancel", (event) => {
+  if (!confirmDiscardIfNeeded()) event.preventDefault();
+});
+
+window.addEventListener("beforeunload", (event) => {
+  if (!hasUnsavedLocalReplay()) return;
+  event.preventDefault();
+  event.returnValue = "";
+});
+
 replayModal.addEventListener("close", () => {
   stopReplayMedia();
   activeReplay = null;
-  pendingMeta = null;
   replayPrompt.hidden = true;
 });
 
@@ -187,17 +279,49 @@ async function persistReplayMeta(id, { name, description }) {
   return session;
 }
 
+async function uploadActiveReplay({ name, description }) {
+  if (!recorder.blob) {
+    replayEditStatus.textContent = "Replay capture is not supported in this browser, so nothing can be uploaded.";
+    return;
+  }
+  const saveBtn = $("btn-save-replay-meta");
+  saveBtn.disabled = true;
+  replayEditStatus.textContent = "Uploading…";
+  try {
+    const posted = await recorder.upload({
+      name: (name || playerName).trim() || playerName,
+      score: activeReplay.score,
+      thumbBlob: pendingThumb,
+      description,
+    });
+    activeReplay = { ...activeReplay, ...posted, videoUrl: activeReplay.videoUrl, audioUrl: activeReplay.audioUrl };
+    pendingThumb = null;
+    $("replay-title").textContent = posted.name;
+    const descView = $("replay-description-view");
+    descView.textContent = posted.description || "";
+    descView.hidden = !posted.description;
+    updateReplayActionUI();
+    replayEditStatus.textContent = "Uploaded to the community log.";
+    uploadStatus.textContent = "Replay posted to the community log.";
+    await refreshLog();
+  } catch (err) {
+    replayEditStatus.textContent = err.message || "Could not upload the replay.";
+  } finally {
+    saveBtn.disabled = false;
+  }
+}
+
+replayShare.addEventListener("click", () => {
+  if (!activeReplay?.id) return;
+  copyShareUrl(activeReplay.id, replayEditStatus);
+});
+
 replayEditForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = replayEditName.value;
   const description = replayEditDescription.value;
   if (!activeReplay?.id) {
-    pendingMeta = { name, description };
-    $("replay-title").textContent = name.trim() || playerName;
-    const descView = $("replay-description-view");
-    descView.textContent = description.trim();
-    descView.hidden = !description.trim();
-    replayEditStatus.textContent = "Will save as soon as the replay finishes uploading.";
+    await uploadActiveReplay({ name, description });
     return;
   }
   replayEditStatus.textContent = "Saving…";
@@ -286,6 +410,7 @@ async function finishRun(score) {
   }
   setHud(false);
 
+  pendingThumb = thumb;
   const localUrl = recorder.blob ? recorder.localUrl() : null;
   if (localUrl) {
     openReplay({
@@ -303,41 +428,9 @@ async function finishRun(score) {
   showScreen("screen-dead");
   overlay.classList.remove("play");
 
-  if (!recorder.blob) {
-    uploadStatus.textContent = "Replay capture is not supported in this browser, so nothing was uploaded.";
-    return;
-  }
-
-  uploadStatus.textContent = "Saving replay to the server…";
-  try {
-    const posted = await recorder.upload({
-      name: pendingMeta?.name || playerName,
-      score,
-      thumbBlob: thumb,
-      description: pendingMeta?.description || "",
-    });
-    const meta = pendingMeta;
-    pendingMeta = null;
-    if (activeReplay && !activeReplay.id) {
-      activeReplay = { ...activeReplay, ...posted, videoUrl: activeReplay.videoUrl, audioUrl: activeReplay.audioUrl };
-    }
-    if (meta && posted.id) {
-      await persistReplayMeta(posted.id, meta);
-    } else {
-      await refreshLog();
-    }
-    uploadStatus.textContent = recorder.audioBlob
-      ? "Replay posted to the community log (with audio)."
-      : "Replay posted. No microphone audio was captured.";
-    if (replayModal.open && !activeReplay?.id) {
-      replayEditStatus.textContent = "";
-    } else if (replayModal.open) {
-      replayEditStatus.textContent = recorder.audioBlob ? "" : "No microphone audio was captured.";
-    }
-  } catch (err) {
-    uploadStatus.textContent = err.message || "Could not upload the replay.";
-    if (replayModal.open) replayEditStatus.textContent = err.message || "Could not upload the replay.";
-  }
+  uploadStatus.textContent = recorder.blob
+    ? "Review your replay, then upload it to the community log."
+    : "Replay capture is not supported in this browser, so nothing was recorded.";
 }
 
 game.onGameOver = (score) => {
@@ -383,4 +476,11 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-refreshLog();
+async function openSharedReplayFromUrl() {
+  const id = new URLSearchParams(location.search).get("replay");
+  if (!id) return;
+  const session = allSessions.find((s) => s.id === id);
+  if (session) openReplay(session);
+}
+
+refreshLog().then(openSharedReplayFromUrl);

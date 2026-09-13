@@ -52,10 +52,11 @@
                       Each play session is recorded as a gameplay replay, including your face
                       <strong>and microphone audio</strong> (reactions, laughs, groans).
                     </li>
-                    <li>When the run ends, that replay plays back immediately, then uploads to this game’s server.</li>
+                    <li>When the run ends, that replay plays back immediately so you can review it.</li>
                     <li>
-                      Your name, score, and replay (video + audio) are posted to the public
-                      <strong>Community Log</strong> so other players can watch.
+                      Nothing is uploaded until you choose to — pressing
+                      <strong>Upload video to community</strong> posts your name, score, and replay
+                      (video + audio) to the public <strong>Community Log</strong> so other players can watch.
                     </li>
                   </ul>
                   <label class="field">
@@ -73,8 +74,9 @@
                     <span>Enable camera, mic &amp; play</span>
                   </button>
                   <p class="fineprint">
-                    By continuing you allow webcam and microphone access, session recording
-                    (video + audio), and public upload of your replay to the community log.
+                    By continuing you allow webcam and microphone access and session recording
+                    (video + audio). Your replay stays on your device until you choose to upload
+                    it to the public community log.
                   </p>
                   <p class="error" id="consent-error" hidden></p>
                 </article>
@@ -103,7 +105,7 @@
                   <h2>Game over</h2>
                   <p class="score-line">Score <strong id="dead-score">0</strong></p>
                   <p class="score-line muted">Best <strong id="dead-best">0</strong></p>
-                  <p class="status" id="upload-status">Saving replay to the server…</p>
+                  <p class="status" id="upload-status">Review your replay, then upload it to the community log.</p>
                   <button type="button" class="primary-btn" id="btn-again">
                     <img src="/assets/play.png" alt="" />
                     <span>Flap again</span>
@@ -122,6 +124,14 @@
             </div>
             <button type="button" class="icon-btn" id="btn-close-log">Close</button>
           </div>
+          <div class="log-search-wrap">
+            <input
+              type="search"
+              id="log-search"
+              placeholder="Search titles &amp; descriptions…"
+              aria-label="Search replays"
+            />
+          </div>
           <div class="log-list" id="log-list">
             <p class="empty">No one has flapped yet. Be the first.</p>
           </div>
@@ -134,38 +144,42 @@
         <div>
           <p id="replay-title">Replay</p>
           <p id="replay-meta"></p>
-          <p id="replay-description-view" class="replay-desc"></p>
         </div>
-        <form method="dialog">
-          <button type="submit" class="icon-btn">Close</button>
-        </form>
+        <button type="button" class="icon-btn" id="btn-close-replay">Close</button>
       </header>
-      <div class="replay-player">
-        <video id="replay-video" controls playsinline></video>
-        <audio id="replay-audio"></audio>
-        <button type="button" class="replay-play-prompt" id="replay-play-prompt" hidden>
-          Play replay
-        </button>
+      <div class="replay-body">
+        <div class="replay-player">
+          <video id="replay-video" controls playsinline></video>
+          <audio id="replay-audio"></audio>
+          <button type="button" class="replay-play-prompt" id="replay-play-prompt" hidden>
+            Play replay
+          </button>
+        </div>
+        <p id="replay-description-view" class="replay-desc"></p>
+        <form id="replay-edit-form" class="replay-edit">
+          <label>
+            <span>Title</span>
+            <input id="replay-edit-name" type="text" maxlength="48" placeholder="Replay title" />
+          </label>
+          <label>
+            <span>Description</span>
+            <textarea
+              id="replay-edit-description"
+              maxlength="280"
+              rows="2"
+              placeholder="Post a description of this run"
+            ></textarea>
+          </label>
+          <div class="replay-actions">
+            <button type="submit" class="primary-btn" id="btn-save-replay-meta">
+              <span>Save title &amp; description</span>
+            </button>
+            <a class="log-mini-btn" id="btn-download-replay" download>Download</a>
+            <button type="button" class="log-mini-btn" id="btn-share-replay" hidden>Share URL</button>
+          </div>
+          <p class="replay-edit-status" id="replay-edit-status"></p>
+        </form>
       </div>
-      <form id="replay-edit-form" class="replay-edit">
-        <label>
-          <span>Title</span>
-          <input id="replay-edit-name" type="text" maxlength="48" placeholder="Replay title" />
-        </label>
-        <label>
-          <span>Description</span>
-          <textarea
-            id="replay-edit-description"
-            maxlength="280"
-            rows="3"
-            placeholder="Post a description of this run"
-          ></textarea>
-        </label>
-        <button type="submit" class="primary-btn" id="btn-save-replay-meta">
-          <span>Save title &amp; description</span>
-        </button>
-        <p class="replay-edit-status" id="replay-edit-status"></p>
-      </form>
     </dialog>
 
     <script type="module" src="/js/main.js"></script>

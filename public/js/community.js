@@ -24,7 +24,7 @@ export async function saveSession(id, { name, description }) {
   return data.session;
 }
 
-export function renderLog(listEl, sessions, { onOpen, onSave }) {
+export function renderLog(listEl, sessions, { onOpen, onSave, buildShareUrl }) {
   listEl.innerHTML = "";
   if (!sessions.length) {
     listEl.innerHTML = `<p class="empty">No one has flapped yet. Be the first.</p>`;
@@ -34,6 +34,7 @@ export function renderLog(listEl, sessions, { onOpen, onSave }) {
     const card = document.createElement("article");
     card.className = "log-card";
     const desc = session.description || "";
+    const filename = `flappy-dude-${slugify(session.name)}.webm`;
     card.innerHTML = `
       <button type="button" class="log-card-main">
         ${
@@ -49,6 +50,8 @@ export function renderLog(listEl, sessions, { onOpen, onSave }) {
       ${desc ? `<p class="log-card-desc">${escapeHtml(desc)}</p>` : ""}
       <div class="log-card-actions">
         <button type="button" class="log-mini-btn log-edit-toggle">Edit</button>
+        <a class="log-mini-btn" href="${escapeAttr(session.videoUrl)}" download="${escapeAttr(filename)}">Download</a>
+        <button type="button" class="log-mini-btn log-share-btn">Share URL</button>
       </div>
       <form class="log-edit-form hidden">
         <label>
@@ -70,8 +73,20 @@ export function renderLog(listEl, sessions, { onOpen, onSave }) {
     const form = card.querySelector(".log-edit-form");
     const toggle = card.querySelector(".log-edit-toggle");
     const status = card.querySelector(".log-edit-status");
+    const shareBtn = card.querySelector(".log-share-btn");
 
     card.querySelector(".log-card-main").addEventListener("click", () => onOpen(session));
+    shareBtn.addEventListener("click", async () => {
+      const url = buildShareUrl ? buildShareUrl(session.id) : `${location.origin}/?replay=${session.id}`;
+      const original = shareBtn.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+        shareBtn.textContent = "Copied!";
+      } catch {
+        window.prompt("Copy this link to share the replay:", url);
+      }
+      setTimeout(() => (shareBtn.textContent = original), 1500);
+    });
     toggle.addEventListener("click", () => {
       form.classList.toggle("hidden");
       toggle.hidden = !form.classList.contains("hidden");
@@ -111,6 +126,15 @@ export function renderLog(listEl, sessions, { onOpen, onSave }) {
     });
     listEl.appendChild(card);
   }
+}
+
+function slugify(value) {
+  return (
+    String(value || "replay")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "replay"
+  );
 }
 
 function escapeHtml(value) {
